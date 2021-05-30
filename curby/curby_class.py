@@ -14,7 +14,6 @@ class Curby(commands.Cog):
 
     @commands.command(help="Greets you!")
     async def hello(self, ctx):
-        guilds = self.bot.guilds
         await ctx.send("Am Curby!")
 
     @commands.command(help="I say my colour.")

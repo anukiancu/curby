@@ -16,6 +16,8 @@ curby_instance = Curby(bot)
 bot.add_cog(music)
 bot.add_cog(curby_instance)
 
+bot.remove_command("play_music")
+
 if __name__ == "__main__":
     curby_instance.daily_pic.start()
     bot.run(DISCORD_BOT_TOKEN)

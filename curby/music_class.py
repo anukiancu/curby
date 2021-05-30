@@ -1,10 +1,14 @@
 import asyncio
 import discord
+from discord.colour import Color, Colour
 from discord.errors import ClientException
 from discord.ext.commands.errors import CommandError
-from curby.music_fetcher import YTDLSource
+from discord.opus import DecoderStruct
+from curby.youtube_dl_source import YTDLSource
 from discord.ext import commands
 import config
+import random
+import datetime
 
 
 class Music(commands.Cog):
@@ -57,25 +61,25 @@ class Music(commands.Cog):
             "star_allies_shape_of_a_heart": "https://www.youtube.com/watch?v=G59SZ0hpo5I",
             "star_allies_let_them_know_were_happy": "https://www.youtube.com/watch?v=6R7s0TANojM",
         }
+        self.PLAYED_SONGS = []
+        self.PREVIOUS = False
+        self.MUSIC_QUEUE_POSITION = -1
 
-    @commands.command(help="I join a voice channel.")
-    async def join(self, ctx):
-        if not ctx.message.author.voice:
-            await ctx.send(
-                f"{ctx.message.author.voice} is not connected to a voice channel."
-            )
-            return
-        else:
-            voice_channel = ctx.message.author.voice.channel
-        await voice_channel.connect()
+    async def generate_embed(self, url, position=None):
+        data = await YTDLSource.fetch_info(url, loop=self.bot.loop)
+        embed = discord.Embed(
+            url=data.get("webpage_url"),
+            title=data.get("title"),
+            description=f"Duration • {datetime.timedelta(seconds=data.get('duration'))}",
+        )
+        embed.set_image(url=data.get("thumbnail"))
+        embed.set_author(name=data.get("uploader"))
 
-    @commands.command(help="I leave the voice channel.")
-    async def leave(self, ctx):
-        vc = ctx.message.guild.voice_client
-        if vc.is_connected():
-            await vc.disconnect()
-        else:
-            await ctx.send("I'm not connected to any voice channels.")
+        if position:
+            embed.set_footer(text=f"Position in queue: {position}")
+
+        embed.color = Colour.magenta()
+        return embed
 
     @commands.command(help="A list of tunes I can play.")
     async def songs(self, ctx):
@@ -93,11 +97,83 @@ class Music(commands.Cog):
         await ctx.send(dreamland_songs)
         await ctx.send(star_allies_songs)
 
+    @commands.command(help="Display the current queue.")
+    async def queue(self, ctx):
+        if not self.MUSIC_QUEUE:
+            await ctx.send("The queue is empty!")
+            return
+
+        arrow_left = "⬅️"
+        arrow_right = "➡️"
+
+        iterator = 1
+        message = await ctx.send(
+            embed=await self.generate_embed(
+                self.MUSIC_QUEUE[iterator], position=iterator
+            )
+        )
+
+        await message.add_reaction(arrow_left)
+        await message.add_reaction(arrow_right)
+
+        def check(reaction, user):
+            return user == ctx.message.author and str(reaction.emoji) in [
+                arrow_left,
+                arrow_right,
+            ]
+
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for(
+                    "reaction_add", check=check, timeout=60
+                )
+                if reaction.emoji == arrow_left:
+                    iterator -= 1
+                    await message.edit(
+                        embed=await self.generate_embed(
+                            self.MUSIC_QUEUE[iterator], position=iterator
+                        )
+                    )
+                    await message.remove_reaction(reaction, user)
+
+                if reaction.emoji == arrow_right:
+                    iterator += 1
+                    await message.edit(
+                        embed=await self.generate_embed(
+                            self.MUSIC_QUEUE[iterator], position=iterator
+                        )
+                    )
+                    await message.remove_reaction(reaction, user)
+            except asyncio.TimeoutError:
+                await message.delete()
+                break
+
+    """@commands.command(help="I join a voice channel.")
+    async def join(self, ctx):
+        if not ctx.message.author.voice:
+            await ctx.send(f"You need to be connected to a voice channel.")
+            return
+        else:
+            voice_channel = ctx.message.author.voice.channel
+        await voice_channel.connect(reconnect=True, timeout=12000)"""
+
     @commands.command(help="Select a game for me to play music from.")
     async def play_game_music(self, ctx):
         star_allies_emoji = "⭐"
         dreamland_emoji = "😴"
-        message = await ctx.send("Pick a game:")
+        vc = ctx.message.guild.voice_client
+        if not vc:
+            if not ctx.message.author.voice:
+                await ctx.send(f"You need to be connected to a voice channel.")
+                return
+            else:
+                voice_channel = ctx.message.author.voice.channel
+
+        await voice_channel.connect(reconnect=True, timeout=12000)
+
+        message = await ctx.send(
+            "Pick a game (press the star for Star Allies and sleepy for Return to Dreamland)."
+        )
         await message.add_reaction(star_allies_emoji)
         await message.add_reaction(dreamland_emoji)
 
@@ -115,50 +191,65 @@ class Music(commands.Cog):
             self.MUSIC_QUEUE = list(self.DREAMLAND_TUNES.values())
 
         await self.play_music(ctx)
+        await message.delete()
 
-    def after(self, error):
-        fut = asyncio.run_coroutine_threadsafe(
-            self.play_music(self.ctx),
-            self.bot.loop,
-        )
-        try:
-            fut.result()
-        except:
-            # an error happened sending the message
-            pass
-
-    @commands.command(help="I play music from my games.")
+    @commands.command()
     async def play_music(self, ctx):
-
-        """try:
-        song_url = tunes[tune]
-        except KeyError:
-            await ctx.send("Sorry, I don't know that song.")
-            return"""
-
         try:
-            server = ctx.message.guild
-            voice_channel = server.voice_client
-            song_url = self.MUSIC_QUEUE[0]
-            self.MUSIC_QUEUE.pop(0)
+            voice_channel = ctx.message.guild.voice_client
+            if not self.PREVIOUS:
+                self.MUSIC_QUEUE_POSITION += 1  # PREVIOUS_ITERATOR = 0
+            else:
+                self.MUSIC_QUEUE_POSITION -= 1
+
+            song_url = self.MUSIC_QUEUE[self.MUSIC_QUEUE_POSITION]
+            """
+            if not self.PREVIOUS:
+                # Get song URL from the first element in the MUSIC_QUEUE list
+                # Remove that song from the queue, as we're playing it
+                self.MUSIC_QUEUE.pop(0)
+                self.PLAYED_SONGS.append(song_url)
+                print(f"Adding {song_url} to played songs")
+
+            else:
+                previous_song = self.PLAYED_SONGS.pop(-1)
+                song_url = self.PLAYED_SONGS[-1]
+                self.MUSIC_QUEUE.insert(0, song_url)
+                self.MUSIC_QUEUE.insert(0, previous_song)
+                print(
+                    f"Readding {song_url} at position {self.PREVIOUS_ITERATOR - 1} to the queue."
+                )
+                self.PREVIOUS_ITERATOR -= 1
+                self.PREVIOUS = False
+            """
 
             async with ctx.typing():
                 filename = await YTDLSource.from_url(song_url, loop=self.bot.loop)
                 try:
-                    self.ctx = ctx
                     voice_channel.play(
                         discord.FFmpegPCMAudio(
                             executable=config.FFMPEG_EXECUTABLE, source=filename
                         ),
-                        after=self.after,
+                        after=lambda x: asyncio.run_coroutine_threadsafe(
+                            self.play_music(ctx), self.bot.loop
+                        ),
                     )
-                except ClientException:
-                    await ctx.send("Please wait for the song to finish.")
+                except ClientException as e:
+                    await ctx.send(e)
                     return
 
             await ctx.send(f"I'm now playing {song_url}")
         except CommandError:
             await ctx.send("I'm not connected to any voice channels.")
+
+        music = discord.Game("Music")
+        await self.bot.change_presence(activity=music)
+
+    @commands.command(help="I shuffle through songs.")
+    async def shuffle(self, ctx):
+        if self.MUSIC_QUEUE:
+            random.shuffle(self.MUSIC_QUEUE)
+            await ctx.send("I'm now shuffling through the playlist.")
 
     @commands.command(help="I pause the music.")
     async def pause(self, ctx):
@@ -180,13 +271,34 @@ class Music(commands.Cog):
                 "I'm not playing any music at the moment. Please use the play command."
             )
 
-    @commands.command(help="I stop playing music.")
-    async def stop(self, ctx):
+    @commands.command(help="I play the next song in the queue.")
+    async def skip(self, ctx):
+        self.PREVIOUS = False
+
         vc = ctx.message.guild.voice_client
         if vc.is_playing():
             vc.stop()
-            await self.leave(self, ctx)
         else:
             await ctx.send(
                 "I'm not playing any music at the moment. Please use the play command."
             )
+
+    @commands.command(help="I play the previous song in the queue.")
+    async def previous(self, ctx):
+        self.PREVIOUS = True
+
+        vc = ctx.message.guild.voice_client
+        if vc.is_playing():
+            vc.stop()
+        else:
+            await ctx.send(
+                "I'm not playing any music at the moment. Please use the play command."
+            )
+
+    @commands.command(help="I leave the voice channel.")
+    async def leave(self, ctx):
+        vc = ctx.message.guild.voice_client
+        if vc.is_connected():
+            await vc.disconnect()
+        else:
+            await ctx.send("I'm not connected to any voice channels.")

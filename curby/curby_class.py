@@ -14,17 +14,27 @@ class Curby(commands.Cog):
 
     @commands.command(help="Greets you!")
     async def hello(self, ctx):
+        guilds = self.bot.guilds
         await ctx.send("Am Curby!")
 
     @commands.command(help="I say my colour.")
     async def colour(self, ctx):
         await ctx.send("Am pink!")
 
+    @commands.command(
+        help="I help you pick between things (please separate them by a comma)."
+    )
+    async def pick(self, ctx, *message):
+        message_string = "".join(message)
+        message_list = message_string.split(",")
+        random_pick = random.choice(message_list)
+        await ctx.send(random_pick)
+
     @commands.command(help="I tell you my mood.")
     async def mood(self, ctx):
 
         moods = {
-            "happ": "happ01,jpg",
+            "happ": "happ01.jpg",
             "angy": ["angy01.jpg", "angy02.jpg", "angy03.jpg"],
             "ball": "ball.jpg",
             "bonk": "bonk.jpg",
@@ -44,12 +54,18 @@ class Curby(commands.Cog):
 
         await ctx.send(file=discord_file, content=f"Am {mood}")
 
+    @commands.command(help="Ask me someting, and I'll give you advice.")
+    async def decide(self, ctx, *args):
+        decisions = ["Yes!", "Hmm, no.", "Maybe?", "Ask again later."]
+        random_decision = random.choice(decisions)
+        await ctx.send(random_decision)
+
     @commands.command(help="I send a cute picture of myself.")
     async def picture(self, ctx):
         await ctx.send(
             f"""
-    Henlo!
-    {get_random_kirby_pic()}
+Henlo!
+{get_random_kirby_pic()}
         """
         )
 
@@ -57,10 +73,11 @@ class Curby(commands.Cog):
     async def daily_pic(self):
         # Our general chat
         await self.bot.wait_until_ready()
-        channel_to_message = self.bot.get_channel(self.GENERAL_CHANNEL_ID)
-        await channel_to_message.send(
-            f"""
-    @everyone Here's your daily picture of me! :3
-    {get_random_kirby_pic()}
-        """
-        )
+        for guild in self.bot.guilds:
+            channel_to_message = guild.text_channels[0]
+            await channel_to_message.send(
+                f"""
+Here's your daily picture of me! :3
+{get_random_kirby_pic()}
+            """
+            )

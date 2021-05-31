@@ -24,7 +24,7 @@ class Curby(commands.Cog):
         help="I help you pick between things (please separate them by a comma)."
     )
     async def pick(self, ctx, *message):
-        message_string = "".join(message)
+        message_string = " ".join(message)
         message_list = message_string.split(",")
         random_pick = random.choice(message_list)
         await ctx.send(random_pick)

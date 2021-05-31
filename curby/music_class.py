@@ -276,6 +276,14 @@ class Music(commands.Cog):
         self.PREVIOUS = False
 
         vc = ctx.message.guild.voice_client
+
+        if vc:
+            if not ctx.message.author.voice:
+                await ctx.send(
+                    f"You need to be connected to a voice channel to run skip."
+                )
+                return
+
         if vc.is_playing():
             vc.stop()
         else:

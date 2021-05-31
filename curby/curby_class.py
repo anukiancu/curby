@@ -1,6 +1,7 @@
 import random
+import discord
 from discord.ext import commands, tasks
-from discord import File
+from discord import File, file
 from curby.image_fetcher import get_random_kirby_pic
 
 
@@ -14,15 +15,15 @@ class Curby(commands.Cog):
 
     @commands.command(help="Greets you!")
     async def hello(self, ctx):
-        await ctx.send("Am Curby!")
+        await ctx.send(
+            "Am Curby! https://gfycat.com/dearesthideousamethystgemclam-nintendo-kirby"
+        )
 
     @commands.command(help="I say my colour.")
     async def colour(self, ctx):
         await ctx.send("Am pink!")
 
-    @commands.command(
-        help="I help you pick between things (please separate them by a comma)."
-    )
+    @commands.command(help="I help you pick between things (separated by a comma).")
     async def pick(self, ctx, *message):
         message_string = " ".join(message)
         message_list = message_string.split(",")
@@ -52,6 +53,10 @@ class Curby(commands.Cog):
             discord_file = File(fp, filename="kirby pic.jpg")
 
         await ctx.send(file=discord_file, content=f"Am {mood}")
+
+    @commands.command(help="I do a cute dance!")
+    async def dance(self, ctx):
+        await ctx.send("https://imgur.com/LqFVtHA")
 
     @commands.command(help="Ask me someting, and I'll give you advice.")
     async def decide(self, ctx, *args):

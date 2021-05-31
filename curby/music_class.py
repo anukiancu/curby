@@ -133,7 +133,7 @@ You can play the highlighted song next clicking {arrow_up}!'
         while True:
             try:
                 reaction, user = await self.bot.wait_for(
-                    "reaction_add", check=check, timeout=60
+                    "reaction_add", check=check, timeout=30
                 )
                 if reaction.emoji == arrow_left:
                     iterator -= 1

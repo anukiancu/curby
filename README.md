@@ -2,10 +2,14 @@
 
 Curby is a cute little Discord bot for all your Kirby needs!
 
+
+It can also play music from Return to Dreamland and Star Allies!
+
 ```
 Curby:
   hello           Greets you!
   colour          I say my colour.
+  dance           I do a cute dance with my friends!
   decide          Ask me someting, and I'll give you advice.
   mood            I tell you my mood.
   pick            I help you pick between things (separated by a comma)

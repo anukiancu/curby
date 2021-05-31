@@ -54,7 +54,7 @@ class Curby(commands.Cog):
 
         await ctx.send(file=discord_file, content=f"Am {mood}")
 
-    @commands.command(help="I do a cute dance!")
+    @commands.command(help="I do a cute dance with my friends!")
     async def dance(self, ctx):
         await ctx.send("https://imgur.com/LqFVtHA")
 

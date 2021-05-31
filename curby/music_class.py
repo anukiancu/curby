@@ -1,6 +1,7 @@
 import asyncio
 import discord
 from discord.colour import Color, Colour
+from discord.embeds import Embed
 from discord.errors import ClientException
 from discord.ext.commands.errors import CommandError
 from discord.opus import DecoderStruct
@@ -61,7 +62,6 @@ class Music(commands.Cog):
             "star_allies_shape_of_a_heart": "https://www.youtube.com/watch?v=G59SZ0hpo5I",
             "star_allies_let_them_know_were_happy": "https://www.youtube.com/watch?v=6R7s0TANojM",
         }
-        self.PLAYED_SONGS = []
         self.PREVIOUS = False
         self.MUSIC_QUEUE_POSITION = -1
 
@@ -77,7 +77,6 @@ class Music(commands.Cog):
 
         if position:
             embed.set_footer(text=f"Position in queue: {position}")
-
         embed.color = Colour.magenta()
         return embed
 
@@ -105,21 +104,31 @@ class Music(commands.Cog):
 
         arrow_left = "⬅️"
         arrow_right = "➡️"
+        arrow_up = "⤴"
 
-        iterator = 1
+        await ctx.send(
+            f"""
+Use {arrow_left} to go backwards, and {arrow_right} to go forwards in the queue.
+You can play the highlighted song next clicking {arrow_up}!'
+        """
+        )
+
+        iterator = self.MUSIC_QUEUE_POSITION
         message = await ctx.send(
             embed=await self.generate_embed(
-                self.MUSIC_QUEUE[iterator], position=iterator
+                self.MUSIC_QUEUE[iterator], position=iterator + 1
             )
         )
 
         await message.add_reaction(arrow_left)
         await message.add_reaction(arrow_right)
+        await message.add_reaction(arrow_up)
 
         def check(reaction, user):
             return user == ctx.message.author and str(reaction.emoji) in [
                 arrow_left,
                 arrow_right,
+                arrow_up,
             ]
 
         while True:
@@ -131,16 +140,34 @@ class Music(commands.Cog):
                     iterator -= 1
                     await message.edit(
                         embed=await self.generate_embed(
-                            self.MUSIC_QUEUE[iterator], position=iterator
+                            self.MUSIC_QUEUE[iterator], position=iterator + 1
                         )
                     )
+                    await message.remove_reaction(reaction, user)
+
+                if reaction.emoji == arrow_up:
+                    # Move MUSIC_QUEUE[iterator] to MUSIC_QUEUE[MUSIC_QUEUE_POSITION + 1]
+                    embed = await self.generate_embed(
+                        self.MUSIC_QUEUE[iterator], position=iterator
+                    )
+
+                    # Skew position to count from 1 instead of -1
+                    embed.set_footer(
+                        text=f"The song has been moved to position {self.MUSIC_QUEUE_POSITION + 2}"
+                    )
+
+                    self.MUSIC_QUEUE.insert(
+                        self.MUSIC_QUEUE_POSITION + 1, self.MUSIC_QUEUE.pop(iterator)
+                    )
+
+                    await message.edit(embed=embed)
                     await message.remove_reaction(reaction, user)
 
                 if reaction.emoji == arrow_right:
                     iterator += 1
                     await message.edit(
                         embed=await self.generate_embed(
-                            self.MUSIC_QUEUE[iterator], position=iterator
+                            self.MUSIC_QUEUE[iterator], position=iterator + 1
                         )
                     )
                     await message.remove_reaction(reaction, user)
@@ -169,7 +196,7 @@ class Music(commands.Cog):
         vc = ctx.message.guild.voice_client
         if not vc:
             if not ctx.message.author.voice:
-                await ctx.send(f"You need to be connected to a voice channel.")
+                await ctx.send("You need to be connected to a voice channel.")
                 return
             else:
                 voice_channel = ctx.message.author.voice.channel
@@ -285,7 +312,7 @@ class Music(commands.Cog):
         if vc:
             if not ctx.message.author.voice:
                 await ctx.send(
-                    f"You need to be connected to a voice channel to run skip."
+                    "You need to be connected to a voice channel to run skip."
                 )
                 return
 

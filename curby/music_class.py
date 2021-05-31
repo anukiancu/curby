@@ -15,7 +15,6 @@ import datetime
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.ctx = None
         self.music_queue = []
         self.previous = False
         self.music_queue_position = -1

@@ -16,7 +16,7 @@ ytdl_format_options = {
     "quiet": True,
     "no_warnings": True,
     "default_search": "auto",
-    "source_address": "0.0.0.0",  # bind to ipv4 since ipv6 addresses cause issues sometimes
+    "source_address": "0.0.0.0",
     "outtmpl": f"{str(download_path)}/%(title)s-%(id)s.%(ext)s",
 }
 

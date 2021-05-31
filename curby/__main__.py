@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-from discord.ext.commands.bot import Bot
 from curby.curby_class import Curby
 from curby.music_class import Music
 

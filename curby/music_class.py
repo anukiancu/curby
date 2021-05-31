@@ -159,6 +159,11 @@ class Music(commands.Cog):
 
     @commands.command(help="Select a game for me to play music from.")
     async def play_game_music(self, ctx):
+        # MUSIC_QUEUE_POSITION determines which element in MUSIC_QUEUE gets played.
+        # It's reset in this function to prevent a bug where play_game_music uses the
+        # same position from the last time it was ran.
+        self.MUSIC_QUEUE_POSITION = -1
+
         star_allies_emoji = "⭐"
         dreamland_emoji = "😴"
         vc = ctx.message.guild.voice_client

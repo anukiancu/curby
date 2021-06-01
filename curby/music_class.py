@@ -18,6 +18,7 @@ class Music(commands.Cog):
         self.music_queue = []
         self.previous = False
         self.music_queue_position = -1
+        self.server_queue = {}
         self.DREAMLAND_TUNES = {
             "dreamland_file_select": "https://www.youtube.com/watch?v=vjWydqMtt5U",
             "dreamland_title_theme": "https://www.youtube.com/watch?v=r9MOP411n_o",
@@ -97,7 +98,7 @@ class Music(commands.Cog):
 
     @commands.command(help="Display the current queue.")
     async def queue(self, ctx):
-        if not self.music_queue:
+        if not self.server_queue[ctx.message.guild.id]["music_queue"]:
             await ctx.send("The queue is empty!")
             return
 
@@ -112,7 +113,8 @@ You can play the highlighted song next clicking {arrow_up}!'
         """
         )
 
-        iterator = self.music_queue_position
+        # iterator = self.music_queue_position
+        iterator = self.server_queue[ctx.message.guild.id]["music_queue_position"]
         message = await ctx.send(
             embed=await self.generate_embed(
                 self.music_queue[iterator], position=iterator + 1
@@ -139,23 +141,33 @@ You can play the highlighted song next clicking {arrow_up}!'
                     iterator -= 1
                     await message.edit(
                         embed=await self.generate_embed(
-                            self.music_queue[iterator], position=iterator + 1
+                            self.server_queue[ctx.message.guild.id]["music_queue"][
+                                iterator
+                            ],
+                            position=iterator + 1,
                         )
                     )
                     await message.remove_reaction(reaction, user)
 
                 if reaction.emoji == arrow_up:
                     embed = await self.generate_embed(
-                        self.music_queue[iterator], position=iterator
+                        self.server_queue[ctx.message.guild.id]["music_queue"][
+                            iterator
+                        ],
+                        position=iterator,
                     )
 
                     # Skew position to count from 1 instead of -1
                     embed.set_footer(
-                        text=f"The song has been moved to position {self.music_queue_position + 2}"  # noqa: E501
+                        text=f"The song has been moved to position {self.server_queue[ctx.message.guild.id]['music_queue_position'] + 2}"  # noqa: E501
                     )
 
-                    self.music_queue.insert(
-                        self.music_queue_position + 1, self.music_queue.pop(iterator)
+                    self.server_queue[ctx.message.guild.id]["music_queue"].insert(
+                        self.server_queue[ctx.message.guild.id]["music_queue_position"]
+                        + 1,
+                        self.server_queue[ctx.message.guild.id]["music_queue"].pop(
+                            iterator
+                        ),
                     )
 
                     await message.edit(embed=embed)
@@ -165,7 +177,10 @@ You can play the highlighted song next clicking {arrow_up}!'
                     iterator += 1
                     await message.edit(
                         embed=await self.generate_embed(
-                            self.music_queue[iterator], position=iterator + 1
+                            self.server_queue[ctx.message.guild.id]["music_queue"][
+                                iterator
+                            ],
+                            position=iterator + 1,
                         )
                     )
                     await message.remove_reaction(reaction, user)
@@ -187,7 +202,10 @@ You can play the highlighted song next clicking {arrow_up}!'
         # MUSIC_QUEUE_POSITION determines which element in MUSIC_QUEUE gets played.
         # It's reset in this function to prevent a bug where play_game_music uses the
         # same position from the last time it was ran.
-        self.music_queue_position = -1
+        # self.music_queue_position = -1
+
+        # Initialize music queue for server ID
+        self.server_queue[ctx.message.guild.id] = {"music_queue_position": -1}
 
         star_allies_emoji = "⭐"
         dreamland_emoji = "😴"
@@ -215,9 +233,15 @@ You can play the highlighted song next clicking {arrow_up}!'
 
         reaction, user = await self.bot.wait_for("reaction_add", check=check)
         if reaction.emoji == star_allies_emoji:
-            self.music_queue = list(self.STAR_ALLIES_TUNES.values())
+            self.server_queue[ctx.message.guild.id]["music_queue"] = list(
+                self.STAR_ALLIES_TUNES.values()
+            )
+            # self.music_queue = list(self.STAR_ALLIES_TUNES.values())
 
         if reaction.emoji == dreamland_emoji:
+            self.server_queue[ctx.message.guild.id]["music_queue"] = list(
+                self.DREAMLAND_TUNES.values()
+            )
             self.music_queue = list(self.DREAMLAND_TUNES.values())
 
         await self.play_music(ctx)
@@ -228,11 +252,18 @@ You can play the highlighted song next clicking {arrow_up}!'
         try:
             voice_channel = ctx.message.guild.voice_client
             if not self.previous:
-                self.music_queue_position += 1
+                # self.music_queue_position += 1
+                self.server_queue[ctx.message.guild.id]["music_queue_position"] += 1
             else:
-                self.music_queue_position -= 1
+                # self.music_queue_position -= 1
+                self.server_queue[ctx.message.guild.id]["music_queue_position"] -= 1
 
-            song_url = self.music_queue[self.music_queue_position]
+            music_queue_position = self.server_queue[ctx.message.guild.id][
+                "music_queue_position"
+            ]
+            song_url = self.server_queue[ctx.message.guild.id]["music_queue"][
+                music_queue_position
+            ]
 
             async with ctx.typing():
                 filename = await YTDLSource.from_url(song_url, loop=self.bot.loop)
@@ -317,7 +348,16 @@ You can play the highlighted song next clicking {arrow_up}!'
     @commands.command(help="I leave the voice channel.")
     async def leave(self, ctx):
         vc = ctx.message.guild.voice_client
+
+        if vc:
+            if not ctx.message.author.voice:
+                await ctx.send(
+                    "You need to be connected to a voice channel to run skip."
+                )
+                return
+
         if vc.is_connected():
             await vc.disconnect()
         else:
             await ctx.send("I'm not connected to any voice channels.")
+        del self.server_queue[ctx.message.guild.id]

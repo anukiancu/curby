@@ -81,7 +81,7 @@ Henlo!
             channel_to_message = guild.text_channels[0]
             await channel_to_message.send(
                 f"""
-Here's your daily picture of me! :3
+Here's a new picture of me! :3
 {get_random_kirby_pic()}
             """
             )

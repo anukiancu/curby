@@ -19,6 +19,30 @@ class Music(commands.Cog):
         self.previous = False
         self.music_queue_position = -1
         self.server_queue = {}
+        self.ANIMAL_CROSSING_TUNES = {
+            "title_theme": "https://www.youtube.com/watch?v=V4YsfDD2l3Y",
+            "able_sisters": "https://www.youtube.com/watch?v=X2wqnroi3xw",
+            "resident_services": "https://soundcloud.com/kevinrios1342/nook-inc-office-animal",
+            "6AM": "https://www.youtube.com/watch?v=5UhgTMBIF2k",
+            "7AM": "https://www.youtube.com/watch?v=TSx28a6kay0",
+            "8AM": "https://www.youtube.com/watch?v=jpcqyRAe6WA",
+            "9AM": "https://www.youtube.com/watch?v=7svzJASleMI",
+            "10AM": "https://www.youtube.com/watch?v=JuhbMVo30b0",
+            "11AM": "https://www.youtube.com/watch?v=1qx35uV0thw",
+            "12AM": "https://www.youtube.com/watch?v=r_IkSBSa8JU",
+            "1PM": "https://www.youtube.com/watch?v=NMUVWixH8Qc",
+            "2PM": "https://www.youtube.com/watch?v=8iDSI1xnj2s",
+            "3PM": "https://www.youtube.com/watch?v=ie0WQtis6X4",
+            "4PM": "https://www.youtube.com/watch?v=vh2nkTmtsb8",
+            "5PM": "https://www.youtube.com/watch?v=WA1KIVLUZb4",
+            "6PM": "https://www.youtube.com/watch?v=4VDsoN2nVnQ",
+            "7PM": "https://www.youtube.com/watch?v=N94ggwTJOv0",
+            "8PM": "https://www.youtube.com/watch?v=cefs8vb6tFg",
+            "9PM": "https://www.youtube.com/watch?v=raa8z5XcAcU",
+            "10PM": "https://www.youtube.com/watch?v=Pv643Vxjykc",
+            "11PM": "https://www.youtube.com/watch?v=lg9l_0_5W9M",
+            "12PM": "https://www.youtube.com/watch?v=t1eIXI3rSvw",
+        }
         self.DREAMLAND_TUNES = {
             "dreamland_file_select": "https://www.youtube.com/watch?v=vjWydqMtt5U",
             "dreamland_title_theme": "https://www.youtube.com/watch?v=r9MOP411n_o",
@@ -37,7 +61,7 @@ class Music(commands.Cog):
             "dreamland_sky_walz": "https://www.youtube.com/watch?v=Dz5xqZUmW2Q",
             "dreamland_final_battle": "https://www.youtube.com/watch?v=2hetvwkxC9Q",
             "dreamland_theme": "https://www.youtube.com/watch?v=rb6MMKV6dPY",
-            "dreamland_training": "https://www.youtube.com/watch?v=uJKgwffy75",
+            "dreamland_training": "https://www.youtube.com/watch?v=uJKgwffy758",
             "dreamland_candy_chaos": "https://www.youtube.com/watch?v=Lo56B3YqGUw",
         }
         self.STAR_ALLIES_TUNES = {
@@ -98,26 +122,28 @@ class Music(commands.Cog):
 
     @commands.command(help="Display the current queue.")
     async def queue(self, ctx):
-        if not self.server_queue[ctx.message.guild.id]["music_queue"]:
-            await ctx.send("The queue is empty!")
-            return
+        try:
+            server_id_queue = self.server_queue[ctx.message.guild.id]
+        except KeyError:
+            return await ctx.send("The queue is empty!")
+
+        end_of_queue = False
 
         arrow_left = "⬅️"
         arrow_right = "➡️"
         arrow_up = "⤴"
 
-        await ctx.send(
+        queue_message = await ctx.send(
             f"""
 Use {arrow_left} to go backwards, and {arrow_right} to go forwards in the queue.
 You can play the highlighted song next clicking {arrow_up}!'
         """
         )
-
-        # iterator = self.music_queue_position
         iterator = self.server_queue[ctx.message.guild.id]["music_queue_position"]
         message = await ctx.send(
             embed=await self.generate_embed(
-                self.music_queue[iterator], position=iterator + 1
+                self.server_queue[ctx.message.guild.id]["music_queue"][iterator],
+                position=iterator + 1,
             )
         )
 
@@ -139,6 +165,14 @@ You can play the highlighted song next clicking {arrow_up}!'
                 )
                 if reaction.emoji == arrow_left:
                     iterator -= 1
+
+                    if end_of_queue:
+                        # Restore reaction order
+                        await message.remove_reaction(arrow_up, self.bot.user)
+                        await message.add_reaction(arrow_right)
+                        await message.add_reaction(arrow_up)
+                        end_of_queue = False
+
                     await message.edit(
                         embed=await self.generate_embed(
                             self.server_queue[ctx.message.guild.id]["music_queue"][
@@ -147,6 +181,26 @@ You can play the highlighted song next clicking {arrow_up}!'
                             position=iterator + 1,
                         )
                     )
+                    await message.remove_reaction(reaction, user)
+
+                if reaction.emoji == arrow_right:
+                    iterator += 1
+
+                    embed = await self.generate_embed(
+                        self.server_queue[ctx.message.guild.id]["music_queue"][
+                            iterator
+                        ],
+                        position=iterator + 1,
+                    )
+
+                    if iterator + 1 == len(
+                        self.server_queue[ctx.message.guild.id]["music_queue"]
+                    ):
+                        embed.set_footer(text="This is the last song in the queue.")
+                        await message.remove_reaction(arrow_right, self.bot.user)
+                        end_of_queue = True
+
+                    await message.edit(embed=embed)
                     await message.remove_reaction(reaction, user)
 
                 if reaction.emoji == arrow_up:
@@ -172,19 +226,8 @@ You can play the highlighted song next clicking {arrow_up}!'
 
                     await message.edit(embed=embed)
                     await message.remove_reaction(reaction, user)
-
-                if reaction.emoji == arrow_right:
-                    iterator += 1
-                    await message.edit(
-                        embed=await self.generate_embed(
-                            self.server_queue[ctx.message.guild.id]["music_queue"][
-                                iterator
-                            ],
-                            position=iterator + 1,
-                        )
-                    )
-                    await message.remove_reaction(reaction, user)
             except asyncio.TimeoutError:
+                await queue_message.delete()
                 await message.delete()
                 break
 
@@ -198,7 +241,7 @@ You can play the highlighted song next clicking {arrow_up}!'
         await voice_channel.connect(reconnect=True, timeout=12000)"""
 
     @commands.command(help="Select a game for me to play music from.")
-    async def play_game_music(self, ctx):
+    async def play_game_music(self, ctx, *args):
         # MUSIC_QUEUE_POSITION determines which element in MUSIC_QUEUE gets played.
         # It's reset in this function to prevent a bug where play_game_music uses the
         # same position from the last time it was ran.
@@ -210,6 +253,7 @@ You can play the highlighted song next clicking {arrow_up}!'
         star_allies_emoji = "⭐"
         dreamland_emoji = "😴"
         vc = ctx.message.guild.voice_client
+        # Tells user they need to be connected to a voice chat to use this command.
         if not vc:
             if not ctx.message.author.voice:
                 await ctx.send("You need to be connected to a voice channel.")
@@ -219,12 +263,21 @@ You can play the highlighted song next clicking {arrow_up}!'
 
         await voice_channel.connect(reconnect=True, timeout=12000)
 
+        # Cheeky easter-egg
+        if "ac" in args:
+            self.server_queue[ctx.message.guild.id]["music_queue"] = list(
+                self.ANIMAL_CROSSING_TUNES.values()
+            )
+            return await self.play_music(ctx)
+
+        # Allows the user to pick a game to play music from based on a reaction.
         message = await ctx.send(
             "Pick a game (press the star for Star Allies and sleepy for Return to Dreamland)."  # noqa: E501
         )
         await message.add_reaction(star_allies_emoji)
         await message.add_reaction(dreamland_emoji)
 
+        # Checks which reaction was sent and plays that game's playlist.
         def check(reaction, user):
             return user == ctx.message.author and str(reaction.emoji) in [
                 star_allies_emoji,
@@ -244,7 +297,9 @@ You can play the highlighted song next clicking {arrow_up}!'
             )
             self.music_queue = list(self.DREAMLAND_TUNES.values())
 
+        # Calls play_music to start playing the music.
         await self.play_music(ctx)
+        # Deletes the "pick game" message.
         await message.delete()
 
     @commands.command()

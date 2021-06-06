@@ -73,7 +73,7 @@ Henlo!
         """
         )
 
-    @tasks.loop(hours=4)
+    @tasks.loop(hours=12)
     async def daily_pic(self):
         # Our general chat
         await self.bot.wait_until_ready()

@@ -35,13 +35,13 @@ class Curby(commands.Cog):
 
         moods = {
             "happ": "happ01.jpg",
-            "angy": ["angy01.jpg", "angy02.jpg", "angy03.jpg"],
+            "angy": ["angy01.jpg", "angy02.jpg", "angy03.jpg", "angy04.jpg"],
             "ball": "ball.jpg",
             "bonk": "bonk.jpg",
             "curb": "curb.jpg",
             "cursed": "cursed.jpg",
-            "hot": "hot.jpg",
-            "hungy": ["hungy01.jpg", "hungy02.jpg", "hungy03.jpg"],
+            "hot": ["hot.jpg", "hot02.jpg", "hot03.jpg"],
+            "hungy": ["hungy01.jpg", "hungy02.jpg", "hungy03.jpg", "hungy04.jpg"],
             "sad": "sad.jpg",
         }
 
